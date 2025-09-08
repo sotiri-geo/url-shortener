@@ -47,9 +47,7 @@ func TestShortenURL(t *testing.T) {
 		}
 
 		assertStatusCode(t, response.Code, http.StatusCreated)
-		if got.Short != want {
-			t.Errorf("got %q, want %q", got.Short, want)
-		}
+		assertShortenURL(t, got.Short, want)
 	})
 }
 
@@ -58,5 +56,13 @@ func assertStatusCode(t testing.TB, got, want int) {
 
 	if got != want {
 		t.Fatalf("incorrect status code: got %d, want %d", got, want)
+	}
+}
+
+func assertShortenURL(t testing.TB, got, want string) {
+	t.Helper()
+
+	if got != want {
+		t.Errorf("not the same shortened url: got %q, want %q", got, want)
 	}
 }
