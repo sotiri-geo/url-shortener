@@ -43,16 +43,28 @@ func HealthCheck(w http.ResponseWriter, r *http.Request) {
 
 // Implement the Handler interface
 func (u *URLServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodPost:
+		u.processURL(w, r)
+		return
+
+	case http.MethodGet:
+		u.redirectURL(w, r)
+		return
+	}
+}
+
+func (u *URLServer) processURL(w http.ResponseWriter, r *http.Request) {
 	var req URLRequest
 	// try decode the body
 	err := json.NewDecoder(r.Body).Decode(&req)
 
 	if err != nil {
-		writeErrorResponse(w, ERR_INVALID_JSON, ERR_INVALID_JSON_CODE, ERR_INVALID_JSON_DETAILS)
+		u.writeErrorResponse(w, ERR_INVALID_JSON, ERR_INVALID_JSON_CODE, ERR_INVALID_JSON_DETAILS)
 		return
 	}
 	if req.URL == "" {
-		writeErrorResponse(w, ERR_EMPTY_URL, ERR_EMPTY_URL_CODE, ERR_EMPTY_URL_DETAILS)
+		u.writeErrorResponse(w, ERR_EMPTY_URL, ERR_EMPTY_URL_CODE, ERR_EMPTY_URL_DETAILS)
 		return
 	}
 
@@ -61,7 +73,11 @@ func (u *URLServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(URLShortResponse{Short: u.store.GetShortURL(req.URL)})
 }
 
-func writeErrorResponse(w http.ResponseWriter, message, code, details string) {
+func (u *URLServer) redirectURL(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusFound)
+}
+
+func (u *URLServer) writeErrorResponse(w http.ResponseWriter, message, code, details string) {
 	w.WriteHeader(http.StatusBadRequest)
 	json.NewEncoder(w).Encode(ErrorResponse{message, code, details})
 }

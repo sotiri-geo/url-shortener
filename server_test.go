@@ -8,7 +8,9 @@ import (
 	"testing"
 )
 
-type FakeStore struct{}
+type FakeStore struct {
+	urls map[string]string
+}
 
 func (f *FakeStore) GetShortURL(url string) string {
 	return "abc123"
@@ -34,11 +36,11 @@ func TestHealthCheckEndpoint(t *testing.T) {
 }
 
 func TestShortenURL(t *testing.T) {
-	server := &URLServer{&FakeStore{}}
 	t.Run("POST /shorten returns a shortened url", func(t *testing.T) {
 		body := `{ "url": "https://example.com" }`
 		req := httptest.NewRequest(http.MethodPost, "/shorten", strings.NewReader(body))
 
+		server := URLServer{&FakeStore{}}
 		response := httptest.NewRecorder()
 		want := "abc123"
 		server.ServeHTTP(response, req)
@@ -56,6 +58,7 @@ func TestShortenURL(t *testing.T) {
 	})
 
 	t.Run("bad client request with missing url key", func(t *testing.T) {
+		server := URLServer{&FakeStore{}}
 		body := `{ invalid json }`
 		req := httptest.NewRequest(http.MethodPost, "/shorten", strings.NewReader(body))
 		response := httptest.NewRecorder()
@@ -79,6 +82,7 @@ func TestShortenURL(t *testing.T) {
 	})
 
 	t.Run("bad client request with empty url", func(t *testing.T) {
+		server := URLServer{&FakeStore{}}
 		body := `{ "url": "" }`
 		req := httptest.NewRequest(http.MethodPost, "/shorten", strings.NewReader(body))
 		response := httptest.NewRecorder()
@@ -101,6 +105,17 @@ func TestShortenURL(t *testing.T) {
 		}
 
 		assertErrorResponse(t, got, want)
+	})
+
+	t.Run("GET /abc123 redirects client", func(t *testing.T) {
+		server := URLServer{&FakeStore{urls: map[string]string{"abc123": "https://example.com"}}}
+		req := httptest.NewRequest(http.MethodGet, "/abc123", nil)
+		response := httptest.NewRecorder()
+
+		server.ServeHTTP(response, req)
+
+		assertStatusCode(t, response.Code, http.StatusFound)
+
 	})
 }
 
