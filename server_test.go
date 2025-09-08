@@ -70,27 +70,43 @@ func TestShortenURL(t *testing.T) {
 			t.Errorf("got error %q, want %q", errorResponse.Error, "invalid JSON")
 		}
 
-		t.Run("bad client request with empty url", func(t *testing.T) {
-			body := `{ "url": "" }`
-			req := httptest.NewRequest(http.MethodPost, "/shorten", strings.NewReader(body))
-			response := httptest.NewRecorder()
+		if errorResponse.Code != "INVALID_JSON" {
+			t.Errorf("got error code %q, want %q", errorResponse.Code, "INVALID_JSON")
+		}
 
-			URLServer(response, req)
+		if errorResponse.Details != "not a valid json format" {
+			t.Errorf("got error details %q, want %q", errorResponse.Code, "not a valid json format")
+		}
+	})
 
-			assertStatusCode(t, response.Code, http.StatusBadRequest)
+	t.Run("bad client request with empty url", func(t *testing.T) {
+		body := `{ "url": "" }`
+		req := httptest.NewRequest(http.MethodPost, "/shorten", strings.NewReader(body))
+		response := httptest.NewRecorder()
 
-			var errorResponse ErrorResponse
+		URLServer(response, req)
 
-			err := json.NewDecoder(response.Body).Decode(&errorResponse)
+		assertStatusCode(t, response.Code, http.StatusBadRequest)
 
-			if err != nil {
-				t.Fatalf("failed to decode response body: %v", err)
-			}
+		var errorResponse ErrorResponse
 
-			if errorResponse.Error != "empty URL" {
-				t.Errorf("got error %q, want %q", errorResponse.Error, "empty URL")
-			}
-		})
+		err := json.NewDecoder(response.Body).Decode(&errorResponse)
+
+		if err != nil {
+			t.Fatalf("failed to decode response body: %v", err)
+		}
+
+		if errorResponse.Error != "empty URL" {
+			t.Errorf("got error %q, want %q", errorResponse.Error, "empty URL")
+		}
+
+		if errorResponse.Code != "EMPTY_URL" {
+			t.Errorf("got error code %q, want %q", errorResponse.Code, "EMPTY_URL")
+		}
+
+		if errorResponse.Details != "url must not be empty" {
+			t.Errorf("got error details %q, want %q", errorResponse.Details, "url must not be empty")
+		}
 	})
 }
 

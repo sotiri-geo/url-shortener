@@ -30,17 +30,20 @@ func URLServer(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&req)
 
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ErrorResponse{Error: "invalid JSON"})
+		writeErrorResponse(w, "invalid JSON", "INVALID_JSON", "not a valid json format")
 		return
 	}
 	if req.URL == "" {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ErrorResponse{Error: "empty URL"})
+		writeErrorResponse(w, "empty URL", "EMPTY_URL", "url must not be empty")
 		return
 	}
 
 	w.WriteHeader(http.StatusCreated)
 
 	json.NewEncoder(w).Encode(URLShortResponse{Short: "abc123"})
+}
+
+func writeErrorResponse(w http.ResponseWriter, message, code, details string) {
+	w.WriteHeader(http.StatusBadRequest)
+	json.NewEncoder(w).Encode(ErrorResponse{message, code, details})
 }
