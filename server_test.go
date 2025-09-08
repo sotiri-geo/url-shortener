@@ -8,7 +8,11 @@ import (
 	"testing"
 )
 
-// type HandlerFunc func(ResponseWriter, *Request)
+type FakeStore struct{}
+
+func (f *FakeStore) GetShortURL(url string) string {
+	return "abc123"
+}
 
 func TestHealthCheckEndpoint(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/health", nil)
@@ -30,13 +34,14 @@ func TestHealthCheckEndpoint(t *testing.T) {
 }
 
 func TestShortenURL(t *testing.T) {
+	server := &URLServer{&FakeStore{}}
 	t.Run("POST /shorten returns a shortened url", func(t *testing.T) {
 		body := `{ "url": "https://example.com" }`
 		req := httptest.NewRequest(http.MethodPost, "/shorten", strings.NewReader(body))
 
 		response := httptest.NewRecorder()
 		want := "abc123"
-		URLServer(response, req)
+		server.ServeHTTP(response, req)
 		var got URLShortResponse
 
 		// decode
@@ -59,7 +64,7 @@ func TestShortenURL(t *testing.T) {
 			Code:    ERR_INVALID_JSON_CODE,
 			Details: ERR_INVALID_JSON_DETAILS,
 		}
-		URLServer(response, req)
+		server.ServeHTTP(response, req)
 		assertStatusCode(t, response.Code, http.StatusBadRequest)
 
 		// Check error response
@@ -83,7 +88,7 @@ func TestShortenURL(t *testing.T) {
 			Details: ERR_EMPTY_URL_DETAILS,
 		}
 
-		URLServer(response, req)
+		server.ServeHTTP(response, req)
 
 		assertStatusCode(t, response.Code, http.StatusBadRequest)
 

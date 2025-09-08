@@ -23,6 +23,14 @@ type URLRequest struct {
 	URL string `json:"url"`
 }
 
+type URLStore interface {
+	GetShortURL(url string) string
+}
+
+type URLServer struct {
+	store URLStore
+}
+
 type ErrorResponse struct {
 	Error   string `json:"error"`
 	Code    string `json:"code,omitempty"`    // optional
@@ -33,7 +41,8 @@ func HealthCheck(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, "ok")
 }
 
-func URLServer(w http.ResponseWriter, r *http.Request) {
+// Implement the Handler interface
+func (u *URLServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var req URLRequest
 	// try decode the body
 	err := json.NewDecoder(r.Body).Decode(&req)
@@ -49,7 +58,7 @@ func URLServer(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusCreated)
 
-	json.NewEncoder(w).Encode(URLShortResponse{Short: "abc123"})
+	json.NewEncoder(w).Encode(URLShortResponse{Short: u.store.GetShortURL(req.URL)})
 }
 
 func writeErrorResponse(w http.ResponseWriter, message, code, details string) {
