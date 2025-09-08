@@ -54,59 +54,48 @@ func TestShortenURL(t *testing.T) {
 		body := `{ invalid json }`
 		req := httptest.NewRequest(http.MethodPost, "/shorten", strings.NewReader(body))
 		response := httptest.NewRecorder()
-
+		want := ErrorResponse{
+			Error:   "invalid JSON",
+			Code:    "INVALID_JSON",
+			Details: "not a valid json format",
+		}
 		URLServer(response, req)
 		assertStatusCode(t, response.Code, http.StatusBadRequest)
 
 		// Check error response
-		var errorResponse ErrorResponse
+		var got ErrorResponse
 
-		err := json.NewDecoder(response.Body).Decode(&errorResponse)
+		err := json.NewDecoder(response.Body).Decode(&got)
 		if err != nil {
 			t.Fatalf("failed to decode error response: %v", err)
 		}
 
-		if errorResponse.Error != "invalid JSON" {
-			t.Errorf("got error %q, want %q", errorResponse.Error, "invalid JSON")
-		}
-
-		if errorResponse.Code != "INVALID_JSON" {
-			t.Errorf("got error code %q, want %q", errorResponse.Code, "INVALID_JSON")
-		}
-
-		if errorResponse.Details != "not a valid json format" {
-			t.Errorf("got error details %q, want %q", errorResponse.Code, "not a valid json format")
-		}
+		assertErrorResponse(t, got, want)
 	})
 
 	t.Run("bad client request with empty url", func(t *testing.T) {
 		body := `{ "url": "" }`
 		req := httptest.NewRequest(http.MethodPost, "/shorten", strings.NewReader(body))
 		response := httptest.NewRecorder()
+		want := ErrorResponse{
+			Error:   "empty URL",
+			Code:    "EMPTY_URL",
+			Details: "url must not be empty",
+		}
 
 		URLServer(response, req)
 
 		assertStatusCode(t, response.Code, http.StatusBadRequest)
 
-		var errorResponse ErrorResponse
+		var got ErrorResponse
 
-		err := json.NewDecoder(response.Body).Decode(&errorResponse)
+		err := json.NewDecoder(response.Body).Decode(&got)
 
 		if err != nil {
 			t.Fatalf("failed to decode response body: %v", err)
 		}
 
-		if errorResponse.Error != "empty URL" {
-			t.Errorf("got error %q, want %q", errorResponse.Error, "empty URL")
-		}
-
-		if errorResponse.Code != "EMPTY_URL" {
-			t.Errorf("got error code %q, want %q", errorResponse.Code, "EMPTY_URL")
-		}
-
-		if errorResponse.Details != "url must not be empty" {
-			t.Errorf("got error details %q, want %q", errorResponse.Details, "url must not be empty")
-		}
+		assertErrorResponse(t, got, want)
 	})
 }
 
@@ -123,5 +112,21 @@ func assertShortenURL(t testing.TB, got, want string) {
 
 	if got != want {
 		t.Errorf("not the same shortened url: got %q, want %q", got, want)
+	}
+}
+
+func assertErrorResponse(t testing.TB, got, want ErrorResponse) {
+	t.Helper()
+
+	if got.Error != want.Error {
+		t.Errorf("got error %q, want %q", got.Error, "empty URL")
+	}
+
+	if got.Code != want.Code {
+		t.Errorf("got error code %q, want %q", got.Code, "EMPTY_URL")
+	}
+
+	if got.Details != want.Details {
+		t.Errorf("got error details %q, want %q", got.Details, "url must not be empty")
 	}
 }
