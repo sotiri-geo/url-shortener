@@ -49,6 +49,49 @@ func TestShortenURL(t *testing.T) {
 		assertStatusCode(t, response.Code, http.StatusCreated)
 		assertShortenURL(t, got.Short, want)
 	})
+
+	t.Run("bad client request with missing url key", func(t *testing.T) {
+		body := `{ invalid json }`
+		req := httptest.NewRequest(http.MethodPost, "/shorten", strings.NewReader(body))
+		response := httptest.NewRecorder()
+
+		URLServer(response, req)
+		assertStatusCode(t, response.Code, http.StatusBadRequest)
+
+		// Check error response
+		var errorResponse map[string]string
+
+		err := json.NewDecoder(response.Body).Decode(&errorResponse)
+		if err != nil {
+			t.Fatalf("failed to decode error response: %v", err)
+		}
+
+		if errorResponse["error"] != "invalid JSON" {
+			t.Errorf("got error %q, want %q", errorResponse["error"], "invalid JSON")
+		}
+
+		t.Run("bad client request with empty url", func(t *testing.T) {
+			body := `{ "url": "" }`
+			req := httptest.NewRequest(http.MethodPost, "/shorten", strings.NewReader(body))
+			response := httptest.NewRecorder()
+
+			URLServer(response, req)
+
+			assertStatusCode(t, response.Code, http.StatusBadRequest)
+
+			var errorResponse map[string]string
+
+			err := json.NewDecoder(response.Body).Decode(&errorResponse)
+
+			if err != nil {
+				t.Fatalf("failed to decode response body: %v", err)
+			}
+
+			if errorResponse["error"] != "empty URL" {
+				t.Errorf("got error %q, want %q", errorResponse["error"], "empty URL")
+			}
+		})
+	})
 }
 
 func assertStatusCode(t testing.TB, got, want int) {
