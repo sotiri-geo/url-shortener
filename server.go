@@ -6,6 +6,15 @@ import (
 	"net/http"
 )
 
+const (
+	ERR_INVALID_JSON         = "invalid JSON"
+	ERR_INVALID_JSON_CODE    = "INVALID_JSON"
+	ERR_INVALID_JSON_DETAILS = "not a valid json format"
+	ERR_EMPTY_URL            = "url must not be empty"
+	ERR_EMPTY_URL_CODE       = "EMPTY_URL"
+	ERR_EMPTY_URL_DETAILS    = "url must not be empty"
+)
+
 type URLShortResponse struct {
 	Short string
 }
@@ -30,11 +39,11 @@ func URLServer(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&req)
 
 	if err != nil {
-		writeErrorResponse(w, "invalid JSON", "INVALID_JSON", "not a valid json format")
+		writeErrorResponse(w, ERR_INVALID_JSON, ERR_INVALID_JSON_CODE, ERR_INVALID_JSON_DETAILS)
 		return
 	}
 	if req.URL == "" {
-		writeErrorResponse(w, "empty URL", "EMPTY_URL", "url must not be empty")
+		writeErrorResponse(w, ERR_EMPTY_URL, ERR_EMPTY_URL_CODE, ERR_EMPTY_URL_DETAILS)
 		return
 	}
 

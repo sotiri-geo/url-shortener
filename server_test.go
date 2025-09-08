@@ -55,9 +55,9 @@ func TestShortenURL(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/shorten", strings.NewReader(body))
 		response := httptest.NewRecorder()
 		want := ErrorResponse{
-			Error:   "invalid JSON",
-			Code:    "INVALID_JSON",
-			Details: "not a valid json format",
+			Error:   ERR_INVALID_JSON,
+			Code:    ERR_INVALID_JSON_CODE,
+			Details: ERR_INVALID_JSON_DETAILS,
 		}
 		URLServer(response, req)
 		assertStatusCode(t, response.Code, http.StatusBadRequest)
@@ -78,9 +78,9 @@ func TestShortenURL(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/shorten", strings.NewReader(body))
 		response := httptest.NewRecorder()
 		want := ErrorResponse{
-			Error:   "empty URL",
-			Code:    "EMPTY_URL",
-			Details: "url must not be empty",
+			Error:   ERR_EMPTY_URL,
+			Code:    ERR_EMPTY_URL_CODE,
+			Details: ERR_EMPTY_URL_DETAILS,
 		}
 
 		URLServer(response, req)
