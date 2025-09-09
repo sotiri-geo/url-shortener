@@ -4,15 +4,19 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"path"
 )
 
 const (
-	ERR_INVALID_JSON         = "invalid JSON"
-	ERR_INVALID_JSON_CODE    = "INVALID_JSON"
-	ERR_INVALID_JSON_DETAILS = "not a valid json format"
-	ERR_EMPTY_URL            = "url must not be empty"
-	ERR_EMPTY_URL_CODE       = "EMPTY_URL"
-	ERR_EMPTY_URL_DETAILS    = "url must not be empty"
+	ERR_INVALID_JSON                 = "invalid JSON"
+	ERR_INVALID_JSON_CODE            = "INVALID_JSON"
+	ERR_INVALID_JSON_DETAILS         = "not a valid json format"
+	ERR_EMPTY_URL                    = "url must not be empty"
+	ERR_EMPTY_URL_CODE               = "EMPTY_URL"
+	ERR_EMPTY_URL_DETAILS            = "url must not be empty"
+	ERR_SHORT_CODE_NOT_FOUND         = "short code not found"
+	ERR_SHORT_CODE_NOT_FOUND_CODE    = "NOT_FOUND"
+	ERR_SHORT_CODE_NOT_FOUND_DETAILS = "cannot process redirect without exisiting short code"
 )
 
 type URLShortResponse struct {
@@ -25,6 +29,7 @@ type URLRequest struct {
 
 type URLStore interface {
 	GetShortURL(url string) string
+	GetOriginalURL(shortCode string) (string, bool)
 }
 
 type URLServer struct {
@@ -60,11 +65,11 @@ func (u *URLServer) processURL(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&req)
 
 	if err != nil {
-		u.writeErrorResponse(w, ERR_INVALID_JSON, ERR_INVALID_JSON_CODE, ERR_INVALID_JSON_DETAILS)
+		u.writeErrorResponse(w, http.StatusBadRequest, ERR_INVALID_JSON, ERR_INVALID_JSON_CODE, ERR_INVALID_JSON_DETAILS)
 		return
 	}
 	if req.URL == "" {
-		u.writeErrorResponse(w, ERR_EMPTY_URL, ERR_EMPTY_URL_CODE, ERR_EMPTY_URL_DETAILS)
+		u.writeErrorResponse(w, http.StatusBadRequest, ERR_EMPTY_URL, ERR_EMPTY_URL_CODE, ERR_EMPTY_URL_DETAILS)
 		return
 	}
 
@@ -74,10 +79,15 @@ func (u *URLServer) processURL(w http.ResponseWriter, r *http.Request) {
 }
 
 func (u *URLServer) redirectURL(w http.ResponseWriter, r *http.Request) {
+	shortCode, exists := u.store.GetOriginalURL(path.Base(r.URL.Path))
+	if !exists {
+		u.writeErrorResponse(w, http.StatusNotFound, ERR_SHORT_CODE_NOT_FOUND, ERR_SHORT_CODE_NOT_FOUND_CODE, ERR_SHORT_CODE_NOT_FOUND_DETAILS)
+	}
 	w.WriteHeader(http.StatusFound)
+	http.Redirect(w, r, shortCode, http.StatusFound)
 }
 
-func (u *URLServer) writeErrorResponse(w http.ResponseWriter, message, code, details string) {
-	w.WriteHeader(http.StatusBadRequest)
+func (u *URLServer) writeErrorResponse(w http.ResponseWriter, status int, message, code, details string) {
+	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(ErrorResponse{message, code, details})
 }

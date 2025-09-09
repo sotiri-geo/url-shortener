@@ -7,10 +7,17 @@ import (
 
 // hard coded implementation of store for now
 
-type InMemoryURLStore struct{}
+type InMemoryURLStore struct {
+	urls map[string]string
+}
 
 func (i *InMemoryURLStore) GetShortURL(url string) string {
 	return "abc123"
+}
+
+func (i *InMemoryURLStore) GetOriginalURL(shortCode string) (string, bool) {
+	url, exists := i.urls[shortCode]
+	return url, exists
 }
 
 func main() {

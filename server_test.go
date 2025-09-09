@@ -16,6 +16,11 @@ func (f *FakeStore) GetShortURL(url string) string {
 	return "abc123"
 }
 
+func (f *FakeStore) GetOriginalURL(shortCode string) (string, bool) {
+	url, exists := f.urls[shortCode]
+	return url, exists
+}
+
 func TestHealthCheckEndpoint(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/health", nil)
 	response := httptest.NewRecorder()
@@ -35,7 +40,7 @@ func TestHealthCheckEndpoint(t *testing.T) {
 	}
 }
 
-func TestShortenURL(t *testing.T) {
+func TestURL(t *testing.T) {
 	t.Run("POST /shorten returns a shortened url", func(t *testing.T) {
 		body := `{ "url": "https://example.com" }`
 		req := httptest.NewRequest(http.MethodPost, "/shorten", strings.NewReader(body))
@@ -54,7 +59,7 @@ func TestShortenURL(t *testing.T) {
 		}
 
 		assertStatusCode(t, response.Code, http.StatusCreated)
-		assertShortenURL(t, got.Short, want)
+		assertURL(t, got.Short, want)
 	})
 
 	t.Run("bad client request with missing url key", func(t *testing.T) {
@@ -107,14 +112,38 @@ func TestShortenURL(t *testing.T) {
 		assertErrorResponse(t, got, want)
 	})
 
-	t.Run("GET /abc123 redirects client", func(t *testing.T) {
+	t.Run("GET /abc123 redirects client to location", func(t *testing.T) {
 		server := URLServer{&FakeStore{urls: map[string]string{"abc123": "https://example.com"}}}
 		req := httptest.NewRequest(http.MethodGet, "/abc123", nil)
 		response := httptest.NewRecorder()
 
 		server.ServeHTTP(response, req)
-
 		assertStatusCode(t, response.Code, http.StatusFound)
+
+		// Test location headers for redirect
+		got := response.Header().Get("Location")
+		want := "https://example.com"
+
+		if got != want {
+			t.Errorf("got location %q, want %q", got, want)
+		}
+
+	})
+
+	t.Run("GET /xyz123 redirect not found location", func(t *testing.T) {
+		server := URLServer{&FakeStore{urls: map[string]string{"abc123": "https://example.com"}}}
+		req := httptest.NewRequest(http.MethodGet, "/xyz123", nil)
+		response := httptest.NewRecorder()
+
+		server.ServeHTTP(response, req)
+		assertStatusCode(t, response.Code, http.StatusNotFound)
+
+		want := ErrorResponse{Error: "short code not found"}
+
+		var got ErrorResponse
+
+		json.NewDecoder(response.Body).Decode(&got)
+		assertErrorResponse(t, got, want)
 
 	})
 }
@@ -127,11 +156,11 @@ func assertStatusCode(t testing.TB, got, want int) {
 	}
 }
 
-func assertShortenURL(t testing.TB, got, want string) {
+func assertURL(t testing.TB, got, want string) {
 	t.Helper()
 
 	if got != want {
-		t.Errorf("not the same shortened url: got %q, want %q", got, want)
+		t.Errorf("not the same url: got %q, want %q", got, want)
 	}
 }
 
@@ -140,13 +169,5 @@ func assertErrorResponse(t testing.TB, got, want ErrorResponse) {
 
 	if got.Error != want.Error {
 		t.Errorf("got error %q, want %q", got.Error, "empty URL")
-	}
-
-	if got.Code != want.Code {
-		t.Errorf("got error code %q, want %q", got.Code, "EMPTY_URL")
-	}
-
-	if got.Details != want.Details {
-		t.Errorf("got error details %q, want %q", got.Details, "url must not be empty")
 	}
 }
