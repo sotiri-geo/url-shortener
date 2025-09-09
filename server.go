@@ -40,6 +40,12 @@ type ErrorResponse struct {
 	Error   string `json:"error"`
 	Code    string `json:"code,omitempty"`    // optional
 	Details string `json:"details,omitempty"` // optional
+	Status  int    `json:"status"`
+}
+
+func (e *ErrorResponse) WriteError(w http.ResponseWriter) {
+	w.WriteHeader(e.Status)
+	json.NewEncoder(w).Encode(e)
 }
 
 func HealthCheck(w http.ResponseWriter, r *http.Request) {
@@ -65,13 +71,13 @@ func (u *URLServer) processURL(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&req)
 
 	if err != nil {
-		errResponse := NewErrorResponse(ERR_INVALID_JSON, ERR_INVALID_JSON_CODE, ERR_INVALID_JSON_DETAILS)
-		u.writeErrorResponse(w, http.StatusBadRequest, errResponse)
+		errResponse := NewErrorResponse(http.StatusBadRequest, ERR_INVALID_JSON, ERR_INVALID_JSON_CODE, ERR_INVALID_JSON_DETAILS)
+		errResponse.WriteError(w)
 		return
 	}
 	if req.URL == "" {
-		errResponse := NewErrorResponse(ERR_EMPTY_URL, ERR_EMPTY_URL_CODE, ERR_EMPTY_URL_DETAILS)
-		u.writeErrorResponse(w, http.StatusBadRequest, errResponse)
+		errResponse := NewErrorResponse(http.StatusBadRequest, ERR_EMPTY_URL, ERR_EMPTY_URL_CODE, ERR_EMPTY_URL_DETAILS)
+		errResponse.WriteError(w)
 		return
 	}
 
@@ -83,18 +89,13 @@ func (u *URLServer) processURL(w http.ResponseWriter, r *http.Request) {
 func (u *URLServer) redirectURL(w http.ResponseWriter, r *http.Request) {
 	shortCode, exists := u.store.GetOriginalURL(path.Base(r.URL.Path))
 	if !exists {
-		errResponse := NewErrorResponse(ERR_SHORT_CODE_NOT_FOUND, ERR_SHORT_CODE_NOT_FOUND_CODE, ERR_SHORT_CODE_NOT_FOUND_DETAILS)
-		u.writeErrorResponse(w, http.StatusNotFound, errResponse)
+		errResponse := NewErrorResponse(http.StatusNotFound, ERR_SHORT_CODE_NOT_FOUND, ERR_SHORT_CODE_NOT_FOUND_CODE, ERR_SHORT_CODE_NOT_FOUND_DETAILS)
+		errResponse.WriteError(w)
 	}
 	w.WriteHeader(http.StatusFound)
 	http.Redirect(w, r, shortCode, http.StatusFound)
 }
 
-func (u *URLServer) writeErrorResponse(w http.ResponseWriter, status int, errorResponse *ErrorResponse) {
-	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(errorResponse)
-}
-
-func NewErrorResponse(message, code, details string) *ErrorResponse {
-	return &ErrorResponse{message, code, details}
+func NewErrorResponse(status int, message, code, details string) *ErrorResponse {
+	return &ErrorResponse{message, code, details, status}
 }
