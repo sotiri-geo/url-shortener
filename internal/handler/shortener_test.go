@@ -61,6 +61,7 @@ func TestURL(t *testing.T) {
 		}
 
 		assertStatusCode(t, response.Code, http.StatusCreated)
+		assertContentType(t, response.Result().Header.Get("content-type"), "application/json")
 		assertURL(t, got.Short, want)
 	})
 
@@ -139,5 +140,13 @@ func assertErrorResponse(t testing.TB, got, want handler.ErrorResponse) {
 
 	if got.Error != want.Error {
 		t.Errorf("got error %q, want %q", got.Error, "empty URL")
+	}
+}
+
+func assertContentType(t testing.TB, got, want string) {
+	t.Helper()
+
+	if got != want {
+		t.Errorf("incorrect content type: got %q, want %q", got, want)
 	}
 }

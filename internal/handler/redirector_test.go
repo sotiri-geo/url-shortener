@@ -18,6 +18,7 @@ func TestRedirector(t *testing.T) {
 
 		server.ServeHTTP(response, req)
 		assertStatusCode(t, response.Code, http.StatusFound)
+		assertContentType(t, response.Result().Header.Get("content-type"), "text/html; charset=utf-8")
 
 		// Test location headers for redirect
 		got := response.Header().Get("Location")
