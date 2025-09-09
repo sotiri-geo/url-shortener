@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/sotiri-geo/url-shortener/internal/handler"
+	"github.com/sotiri-geo/url-shortener/internal/storage"
 )
 
 type FakeStore struct {
@@ -80,10 +81,19 @@ func TestURL(t *testing.T) {
 		server := handler.NewShortener(store)
 		response := httptest.NewRecorder()
 		server.ServeHTTP(response, req)
+		var got handler.URLShortResponse
+
+		// decode
+		err := json.NewDecoder(response.Body).Decode(&got)
+
+		if err != nil {
+			t.Fatalf("failed to decode body: %v", err)
+		}
 
 		if len(store.urls) != 1 {
 			t.Errorf("did not store short URL: got length %d, want %d", len(store.urls), 1)
 		}
+		assertShortCodeStored(t, store, got.Short, "https://example.com")
 	})
 
 	t.Run("bad client request with missing url key", func(t *testing.T) {
@@ -137,6 +147,20 @@ func TestURL(t *testing.T) {
 
 		assertErrorResponse(t, got, want)
 	})
+
+}
+
+func assertShortCodeStored(t testing.TB, store storage.URLStore, shortCode, wantOriginal string) {
+	t.Helper()
+	gotOriginal, exists := store.GetOriginalURL(shortCode)
+
+	if !exists {
+		t.Errorf("could not find short code: %q", shortCode)
+	}
+
+	if gotOriginal != "https://example.com" {
+		t.Errorf("incorrect state stored: got %q, want %q", gotOriginal, wantOriginal)
+	}
 
 }
 
