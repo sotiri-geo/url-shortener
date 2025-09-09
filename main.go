@@ -22,6 +22,10 @@ func (i *InMemoryURLStore) GetOriginalURL(shortCode string) (string, bool) {
 	return url, exists
 }
 
+func (i *InMemoryURLStore) Save(shortCode, original string) {
+	i.urls[shortCode] = original
+}
+
 func main() {
 	store := InMemoryURLStore{}
 	shortener := handler.NewShortener(&store)

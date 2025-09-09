@@ -23,6 +23,14 @@ func (f *FakeStore) GetOriginalURL(shortCode string) (string, bool) {
 	return url, exists
 }
 
+func (f *FakeStore) Save(shortCode, original string) {
+	f.urls[shortCode] = original
+}
+
+func NewFakeStore() *FakeStore {
+	return &FakeStore{urls: make(map[string]string)}
+}
+
 func TestHealthCheckEndpoint(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/health", nil)
 	response := httptest.NewRecorder()
@@ -46,8 +54,8 @@ func TestURL(t *testing.T) {
 	t.Run("POST /shorten returns a shortened url", func(t *testing.T) {
 		body := `{ "url": "https://example.com" }`
 		req := httptest.NewRequest(http.MethodPost, "/shorten", strings.NewReader(body))
-		store := FakeStore{}
-		server := handler.NewShortener(&store)
+		store := NewFakeStore()
+		server := handler.NewShortener(store)
 		response := httptest.NewRecorder()
 		want := "abc123"
 		server.ServeHTTP(response, req)
@@ -65,9 +73,22 @@ func TestURL(t *testing.T) {
 		assertURL(t, got.Short, want)
 	})
 
+	t.Run("POST /shorten stores state", func(t *testing.T) {
+		body := `{ "url": "https://example.com" }`
+		req := httptest.NewRequest(http.MethodPost, "/shorten", strings.NewReader(body))
+		store := NewFakeStore()
+		server := handler.NewShortener(store)
+		response := httptest.NewRecorder()
+		server.ServeHTTP(response, req)
+
+		if len(store.urls) != 1 {
+			t.Errorf("did not store short URL: got length %d, want %d", len(store.urls), 1)
+		}
+	})
+
 	t.Run("bad client request with missing url key", func(t *testing.T) {
-		store := FakeStore{}
-		server := handler.NewShortener(&store)
+		store := NewFakeStore()
+		server := handler.NewShortener(store)
 		body := `{ invalid json }`
 		req := httptest.NewRequest(http.MethodPost, "/shorten", strings.NewReader(body))
 		response := httptest.NewRecorder()
@@ -91,8 +112,8 @@ func TestURL(t *testing.T) {
 	})
 
 	t.Run("bad client request with empty url", func(t *testing.T) {
-		store := FakeStore{}
-		server := handler.NewShortener(&store)
+		store := NewFakeStore()
+		server := handler.NewShortener(store)
 		body := `{ "url": "" }`
 		req := httptest.NewRequest(http.MethodPost, "/shorten", strings.NewReader(body))
 		response := httptest.NewRecorder()
