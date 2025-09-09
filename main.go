@@ -3,6 +3,8 @@ package main
 import (
 	"log"
 	"net/http"
+
+	"github.com/sotiri-geo/url-shortener/internal/service"
 )
 
 // hard coded implementation of store for now
@@ -22,9 +24,9 @@ func (i *InMemoryURLStore) GetOriginalURL(shortCode string) (string, bool) {
 
 func main() {
 	store := InMemoryURLStore{}
-	shortener := NewShortener(&store)
+	shortener := service.NewShortener(&store)
 	// Create handle func and register route
-	http.HandleFunc("/health", HealthCheck)
+	http.HandleFunc("/health", service.HealthCheck)
 	http.Handle("/shortener", shortener)
 	log.Fatal(http.ListenAndServe(":3000", nil))
 }

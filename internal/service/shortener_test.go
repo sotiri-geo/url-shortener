@@ -1,4 +1,4 @@
-package main
+package service_test
 
 import (
 	"encoding/json"
@@ -6,6 +6,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/sotiri-geo/url-shortener/internal/service"
 )
 
 type FakeStore struct {
@@ -25,7 +27,7 @@ func TestHealthCheckEndpoint(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/health", nil)
 	response := httptest.NewRecorder()
 
-	HealthCheck(response, req)
+	service.HealthCheck(response, req)
 
 	got := response.Body.String()
 
@@ -45,11 +47,11 @@ func TestURL(t *testing.T) {
 		body := `{ "url": "https://example.com" }`
 		req := httptest.NewRequest(http.MethodPost, "/shorten", strings.NewReader(body))
 		store := FakeStore{}
-		server := NewShortener(&store)
+		server := service.NewShortener(&store)
 		response := httptest.NewRecorder()
 		want := "abc123"
 		server.ServeHTTP(response, req)
-		var got URLShortResponse
+		var got service.URLShortResponse
 
 		// decode
 		err := json.NewDecoder(response.Body).Decode(&got)
@@ -64,20 +66,20 @@ func TestURL(t *testing.T) {
 
 	t.Run("bad client request with missing url key", func(t *testing.T) {
 		store := FakeStore{}
-		server := NewShortener(&store)
+		server := service.NewShortener(&store)
 		body := `{ invalid json }`
 		req := httptest.NewRequest(http.MethodPost, "/shorten", strings.NewReader(body))
 		response := httptest.NewRecorder()
-		want := ErrorResponse{
-			Error:   ERR_INVALID_JSON,
-			Code:    ERR_INVALID_JSON_CODE,
-			Details: ERR_INVALID_JSON_DETAILS,
+		want := service.ErrorResponse{
+			Error:   service.ERR_INVALID_JSON,
+			Code:    service.ERR_INVALID_JSON_CODE,
+			Details: service.ERR_INVALID_JSON_DETAILS,
 		}
 		server.ServeHTTP(response, req)
 		assertStatusCode(t, response.Code, http.StatusBadRequest)
 
 		// Check error response
-		var got ErrorResponse
+		var got service.ErrorResponse
 
 		err := json.NewDecoder(response.Body).Decode(&got)
 		if err != nil {
@@ -89,21 +91,21 @@ func TestURL(t *testing.T) {
 
 	t.Run("bad client request with empty url", func(t *testing.T) {
 		store := FakeStore{}
-		server := NewShortener(&store)
+		server := service.NewShortener(&store)
 		body := `{ "url": "" }`
 		req := httptest.NewRequest(http.MethodPost, "/shorten", strings.NewReader(body))
 		response := httptest.NewRecorder()
-		want := ErrorResponse{
-			Error:   ERR_EMPTY_URL,
-			Code:    ERR_EMPTY_URL_CODE,
-			Details: ERR_EMPTY_URL_DETAILS,
+		want := service.ErrorResponse{
+			Error:   service.ERR_EMPTY_URL,
+			Code:    service.ERR_EMPTY_URL_CODE,
+			Details: service.ERR_EMPTY_URL_DETAILS,
 		}
 
 		server.ServeHTTP(response, req)
 
 		assertStatusCode(t, response.Code, http.StatusBadRequest)
 
-		var got ErrorResponse
+		var got service.ErrorResponse
 
 		err := json.NewDecoder(response.Body).Decode(&got)
 
@@ -114,42 +116,6 @@ func TestURL(t *testing.T) {
 		assertErrorResponse(t, got, want)
 	})
 
-	t.Run("GET /abc123 redirects client to location", func(t *testing.T) {
-		store := FakeStore{urls: map[string]string{"abc123": "https://example.com"}}
-		server := NewRedirector(&store)
-		req := httptest.NewRequest(http.MethodGet, "/abc123", nil)
-		response := httptest.NewRecorder()
-
-		server.ServeHTTP(response, req)
-		assertStatusCode(t, response.Code, http.StatusFound)
-
-		// Test location headers for redirect
-		got := response.Header().Get("Location")
-		want := "https://example.com"
-
-		if got != want {
-			t.Errorf("got location %q, want %q", got, want)
-		}
-
-	})
-
-	t.Run("GET /xyz123 redirect not found location", func(t *testing.T) {
-		store := FakeStore{urls: map[string]string{"abc123": "https://example.com"}}
-		server := NewRedirector(&store)
-		req := httptest.NewRequest(http.MethodGet, "/xyz123", nil)
-		response := httptest.NewRecorder()
-
-		server.ServeHTTP(response, req)
-		assertStatusCode(t, response.Code, http.StatusNotFound)
-
-		want := ErrorResponse{Error: "short code not found"}
-
-		var got ErrorResponse
-
-		json.NewDecoder(response.Body).Decode(&got)
-		assertErrorResponse(t, got, want)
-
-	})
 }
 
 func assertStatusCode(t testing.TB, got, want int) {
@@ -168,7 +134,7 @@ func assertURL(t testing.TB, got, want string) {
 	}
 }
 
-func assertErrorResponse(t testing.TB, got, want ErrorResponse) {
+func assertErrorResponse(t testing.TB, got, want service.ErrorResponse) {
 	t.Helper()
 
 	if got.Error != want.Error {
