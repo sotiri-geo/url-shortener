@@ -16,11 +16,11 @@ func NewRedirector(store storage.URLStore) *Redirector {
 }
 
 func (rd *Redirector) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	shortCode, exists := rd.store.GetOriginalURL(path.Base(r.URL.Path))
+	originalURL, exists := rd.store.GetOriginalURL(path.Base(r.URL.Path))
 	if !exists {
 		errResponse := NewErrorResponse(http.StatusNotFound, ERR_SHORT_CODE_NOT_FOUND, ERR_SHORT_CODE_NOT_FOUND_CODE, ERR_SHORT_CODE_NOT_FOUND_DETAILS)
 		errResponse.WriteError(w)
+		return
 	}
-	w.WriteHeader(http.StatusFound)
-	http.Redirect(w, r, shortCode, http.StatusFound)
+	http.Redirect(w, r, originalURL, http.StatusFound)
 }
