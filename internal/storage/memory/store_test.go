@@ -1,6 +1,7 @@
 package memory_test
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/sotiri-geo/url-shortener/internal/storage/memory"
@@ -45,5 +46,22 @@ func TestMemoryDBStore(t *testing.T) {
 			t.Errorf("got %q, want %q", got, want)
 		}
 
+	})
+
+	t.Run("handles conflicting short urls", func(t *testing.T) {
+		store := memory.New()
+		shortUrl, originalUrl := "abc123", "https://example.com"
+		store.Save(shortUrl, originalUrl)
+
+		// should fail
+		err := store.Save(shortUrl, originalUrl)
+
+		if err == nil {
+			t.Fatal("failed to raise conflicting error")
+		}
+		// integrity error
+		if !errors.Is(err, memory.ErrShortUrlExists) {
+			t.Errorf("short url %q already exists: %v", shortUrl, err)
+		}
 	})
 }
