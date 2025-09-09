@@ -13,27 +13,19 @@ func TestRedirector(t *testing.T) {
 	t.Run("GET /abc123 redirects client to location", func(t *testing.T) {
 		store := FakeStore{urls: map[string]string{"abc123": "https://example.com"}}
 		server := handler.NewRedirector(&store)
-		req := httptest.NewRequest(http.MethodGet, "/abc123", nil)
+		req := newRedirectRequest("abc123")
 		response := httptest.NewRecorder()
 
 		server.ServeHTTP(response, req)
 		assertStatusCode(t, response.Code, http.StatusFound)
 		assertContentType(t, response.Result().Header.Get("content-type"), "text/html; charset=utf-8")
-
-		// Test location headers for redirect
-		got := response.Header().Get("Location")
-		want := "https://example.com"
-
-		if got != want {
-			t.Errorf("got location %q, want %q", got, want)
-		}
-
+		assertLocationHeader(t, response.Header().Get("Location"), "https://example.com")
 	})
 
 	t.Run("GET /xyz123 redirect not found location", func(t *testing.T) {
 		store := FakeStore{urls: map[string]string{"abc123": "https://example.com"}}
 		server := handler.NewRedirector(&store)
-		req := httptest.NewRequest(http.MethodGet, "/xyz123", nil)
+		req := newRedirectRequest("xyz123")
 		response := httptest.NewRecorder()
 
 		server.ServeHTTP(response, req)
@@ -48,4 +40,15 @@ func TestRedirector(t *testing.T) {
 
 	})
 
+}
+
+func newRedirectRequest(shortCode string) *http.Request {
+	return httptest.NewRequest(http.MethodGet, "/"+shortCode, nil)
+}
+
+func assertLocationHeader(t testing.TB, got, want string) {
+	t.Helper()
+	if got != want {
+		t.Errorf("got location %q, want %q", got, want)
+	}
 }
