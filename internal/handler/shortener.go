@@ -78,11 +78,11 @@ func (u *Shortener) processURL(w http.ResponseWriter, r *http.Request) {
 		errResponse.WriteError(w)
 		return
 	}
-	// Write to store
-	shortCode := u.store.GetShortURL(req.URL)
-	u.store.Save(shortCode, req.URL)
+	// Generate short url ... TODO: hardcode for now
+	shortUrl := "abc123"
+	u.store.Save(shortUrl, req.URL)
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(URLShortResponse{Short: shortCode})
+	json.NewEncoder(w).Encode(URLShortResponse{Short: shortUrl})
 }
 
 func NewErrorResponse(status int, message, code, details string) *ErrorResponse {
