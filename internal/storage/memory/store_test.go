@@ -8,7 +8,7 @@ import (
 )
 
 func TestMemoryDBStore(t *testing.T) {
-	t.Run("get original url from short url", func(t *testing.T) {
+	t.Run("get original url from short code", func(t *testing.T) {
 		store := memory.NewWithData(map[string]string{"abc123": "https://example.com"})
 
 		got, exists := store.GetOriginalUrl("abc123")
@@ -32,14 +32,14 @@ func TestMemoryDBStore(t *testing.T) {
 
 	t.Run("url should persist", func(t *testing.T) {
 		store := memory.New()
-		shortUrl := "abc123"
+		shortCode := "abc123"
 		want := "https://example.com"
-		store.Save(shortUrl, want)
+		store.Save(shortCode, want)
 
-		got, exists := store.GetOriginalUrl(shortUrl)
+		got, exists := store.GetOriginalUrl(shortCode)
 
 		if !exists {
-			t.Fatalf("short url %q should exist", shortUrl)
+			t.Fatalf("short url %q should exist", shortCode)
 		}
 
 		if got != want {
@@ -48,20 +48,36 @@ func TestMemoryDBStore(t *testing.T) {
 
 	})
 
-	t.Run("handles conflicting short urls", func(t *testing.T) {
+	t.Run("handles conflicting short code", func(t *testing.T) {
 		store := memory.New()
-		shortUrl, originalUrl := "abc123", "https://example.com"
-		store.Save(shortUrl, originalUrl)
+		shortCode, originalUrl := "abc123", "https://example.com"
+		store.Save(shortCode, originalUrl)
 
 		// should fail
-		err := store.Save(shortUrl, originalUrl)
+		err := store.Save(shortCode, originalUrl)
 
 		if err == nil {
 			t.Fatal("failed to raise conflicting error")
 		}
 		// integrity error
-		if !errors.Is(err, memory.ErrShortUrlExists) {
-			t.Errorf("short url %q already exists: %v", shortUrl, err)
+		if !errors.Is(err, memory.ErrShortCodeExists) {
+			t.Errorf("short url %q already exists: %v", shortCode, err)
+		}
+	})
+
+	t.Run("checks existence of short code", func(t *testing.T) {
+		store := memory.New()
+		shortCode, originalUrl := "abc123", "https://example.com"
+		err := store.Save(shortCode, originalUrl)
+
+		if err != nil {
+			t.Fatal("should not fail during save")
+		}
+
+		exists := store.Exists(shortCode)
+
+		if !exists {
+			t.Error("should exist in store")
 		}
 	})
 }

@@ -29,8 +29,41 @@ func (f *FakeStore) Save(shortCode, original string) {
 	f.urls[shortCode] = original
 }
 
+func (f *FakeStore) Exists(shortCode string) bool {
+	_, exists := f.urls[shortCode]
+	return exists
+}
+
 func NewFakeStore() *FakeStore {
 	return &FakeStore{urls: make(map[string]string)}
+}
+
+func NewFakeStoreWithUrls(urls map[string]string) *FakeStore {
+	return &FakeStore{urls: urls}
+}
+
+type StubGenerator struct {
+	GenerateCallCount int
+	FixedResponse     string
+	Repeat            int
+}
+
+func (s *StubGenerator) Generate() string {
+	// Forcing a collision
+	if s.Repeat > 0 {
+		s.GenerateCallCount++
+		s.Repeat--
+		return s.FixedResponse
+	}
+	return "abc123"
+}
+
+func NewStubGenerator() *StubGenerator {
+	return &StubGenerator{}
+}
+
+func NewStubGeneratorWithFixedResponse(fixedResponse string, repeat int) *StubGenerator {
+	return &StubGenerator{FixedResponse: fixedResponse, Repeat: repeat}
 }
 
 func TestHealthCheckEndpoint(t *testing.T) {
@@ -56,7 +89,7 @@ func TestURL(t *testing.T) {
 	t.Run("POST /shorten returns a shortened url", func(t *testing.T) {
 		req := newShortenRequest(`{ "url": "https://example.com" }`)
 		store := NewFakeStore()
-		server := handler.NewShortener(store)
+		server := handler.NewShortener(store, NewStubGenerator())
 		response := httptest.NewRecorder()
 		want := "abc123"
 		server.ServeHTTP(response, req)
@@ -76,7 +109,7 @@ func TestURL(t *testing.T) {
 	t.Run("POST /shorten stores state", func(t *testing.T) {
 		req := newShortenRequest(`{ "url": "https://example.com" }`)
 		store := NewFakeStore()
-		server := handler.NewShortener(store)
+		server := handler.NewShortener(store, NewStubGenerator())
 		response := httptest.NewRecorder()
 		server.ServeHTTP(response, req)
 		got, err := getShortCode(response.Body)
@@ -92,7 +125,7 @@ func TestURL(t *testing.T) {
 
 	t.Run("bad client request with missing url key", func(t *testing.T) {
 		store := NewFakeStore()
-		server := handler.NewShortener(store)
+		server := handler.NewShortener(store, NewStubGenerator())
 		req := newShortenRequest(`{ invalid json }`)
 		response := httptest.NewRecorder()
 		want := handler.ErrorResponse{
@@ -116,7 +149,7 @@ func TestURL(t *testing.T) {
 
 	t.Run("bad client request with empty url", func(t *testing.T) {
 		store := NewFakeStore()
-		server := handler.NewShortener(store)
+		server := handler.NewShortener(store, NewStubGenerator())
 		req := newShortenRequest(`{ "url": "" }`)
 		response := httptest.NewRecorder()
 		want := handler.ErrorResponse{
@@ -140,6 +173,51 @@ func TestURL(t *testing.T) {
 		assertErrorResponse(t, got, want)
 	})
 
+	t.Run("generated code existing requires a retry", func(t *testing.T) {
+		store := NewFakeStoreWithUrls(map[string]string{"xyz123": "https://test.com"})
+		wantCallCount := 2
+		gen := NewStubGeneratorWithFixedResponse("xyz123", wantCallCount)
+		server := handler.NewShortener(store, gen)
+		req := newShortenRequest(`{"url": "https://example.com"}`)
+		response := httptest.NewRecorder()
+		server.ServeHTTP(response, req)
+
+		// Generator should be called multiple times on collision
+
+		if gen.GenerateCallCount != wantCallCount {
+			t.Errorf("generator should have retried: call count found %d", gen.GenerateCallCount)
+		}
+	})
+
+	t.Run("exceeded retry attempts", func(t *testing.T) {
+		store := NewFakeStoreWithUrls(map[string]string{"xyz123": "https://test.com"})
+		gen := NewStubGeneratorWithFixedResponse("xyz123", 5) // repeats more times
+		server := handler.NewShortener(store, gen)
+		req := newShortenRequest(`{"url": "https://example.com"}`)
+		response := httptest.NewRecorder()
+		server.ServeHTTP(response, req)
+
+		want := handler.NewErrorResponse(http.StatusInternalServerError, handler.ErrRetryAttemptsExceeded.Error(), "", "")
+		// Should exceed count returning an error
+		got, err := getErrorResponse(response)
+		if err != nil {
+			t.Fatalf("failed to decode response: %v", err)
+		}
+		assertErrorResponse(t, *got, *want)
+
+	})
+}
+
+func getErrorResponse(response *httptest.ResponseRecorder) (*handler.ErrorResponse, error) {
+	var got handler.ErrorResponse
+
+	err := json.NewDecoder(response.Body).Decode(&got)
+
+	if err != nil {
+		return &got, err
+	}
+
+	return &got, nil
 }
 
 func assertShortCodeStored(t testing.TB, store storage.URLStore, shortCode, wantOriginal string) {
@@ -176,7 +254,7 @@ func assertErrorResponse(t testing.TB, got, want handler.ErrorResponse) {
 	t.Helper()
 
 	if got.Error != want.Error {
-		t.Errorf("got error %q, want %q", got.Error, "empty URL")
+		t.Errorf("got error %q, want %q", got.Error, want.Error)
 	}
 }
 

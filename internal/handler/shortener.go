@@ -2,9 +2,12 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"net/http"
 
+	"github.com/sotiri-geo/url-shortener/internal/generator"
 	"github.com/sotiri-geo/url-shortener/internal/storage"
 )
 
@@ -21,6 +24,8 @@ const (
 	JsonContentType                  = "application/json"
 )
 
+var ErrRetryAttemptsExceeded = errors.New("Exhausted retries.")
+
 type URLShortResponse struct {
 	Short string
 }
@@ -30,7 +35,8 @@ type URLRequest struct {
 }
 
 type Shortener struct {
-	store storage.URLStore
+	store     storage.URLStore
+	generator generator.Generator
 }
 
 type ErrorResponse struct {
@@ -40,8 +46,8 @@ type ErrorResponse struct {
 	Status  int    `json:"status"`
 }
 
-func NewShortener(store storage.URLStore) *Shortener {
-	return &Shortener{store}
+func NewShortener(store storage.URLStore, generator generator.Generator) *Shortener {
+	return &Shortener{store, generator}
 }
 
 func (e *ErrorResponse) WriteError(w http.ResponseWriter) {
@@ -78,11 +84,28 @@ func (u *Shortener) processURL(w http.ResponseWriter, r *http.Request) {
 		errResponse.WriteError(w)
 		return
 	}
-	// Generate short url ... TODO: hardcode for now
-	shortUrl := "abc123"
-	u.store.Save(shortUrl, req.URL)
+
+	shortCode, err := u.retryShortCode(3) // TODO: pass in rety count as field on struct
+
+	if err != nil {
+		errResponse := NewErrorResponse(http.StatusBadRequest, err.Error(), "RETRY_FAIL", fmt.Sprintf("attempted %d retries", 3))
+		errResponse.WriteError(w)
+		return
+	}
+
+	u.store.Save(shortCode, req.URL)
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(URLShortResponse{Short: shortUrl})
+	json.NewEncoder(w).Encode(URLShortResponse{Short: shortCode})
+}
+
+func (u *Shortener) retryShortCode(count int) (string, error) {
+	shortCode := u.generator.Generate()
+	if !u.store.Exists(shortCode) {
+		return shortCode, nil
+	} else if count > 0 {
+		return u.retryShortCode(count - 1)
+	}
+	return "", ErrRetryAttemptsExceeded
 }
 
 func NewErrorResponse(status int, message, code, details string) *ErrorResponse {

@@ -11,7 +11,7 @@ import (
 func TestGeneratingShortCodesAndRedirecting(t *testing.T) {
 
 	store := NewFakeStore()
-	shortner := handler.NewShortener(store)
+	shortner := handler.NewShortener(store, NewStubGenerator())
 	redirector := handler.NewRedirector(store)
 
 	t.Run("store url then use short url to be redirected", func(t *testing.T) {
