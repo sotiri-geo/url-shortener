@@ -18,7 +18,7 @@ const (
 	ERR_SHORT_CODE_NOT_FOUND         = "short code not found"
 	ERR_SHORT_CODE_NOT_FOUND_CODE    = "NOT_FOUND"
 	ERR_SHORT_CODE_NOT_FOUND_DETAILS = "cannot process redirect without exisiting short code"
-	jsonContentType                  = "application/json"
+	JsonContentType                  = "application/json"
 )
 
 type URLShortResponse struct {
@@ -55,7 +55,7 @@ func HealthCheck(w http.ResponseWriter, r *http.Request) {
 
 // Implement the Handler interface
 func (u *Shortener) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("content-type", jsonContentType)
+	w.Header().Set("content-type", JsonContentType)
 	switch r.Method {
 	case http.MethodPost:
 		u.processURL(w, r)

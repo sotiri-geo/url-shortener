@@ -1,6 +1,7 @@
 package handler_test
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -59,10 +60,9 @@ func TestURL(t *testing.T) {
 		response := httptest.NewRecorder()
 		want := "abc123"
 		server.ServeHTTP(response, req)
-		var got handler.URLShortResponse
 
 		// decode
-		err := json.NewDecoder(response.Body).Decode(&got)
+		got, err := getShortCode(response.Body)
 
 		if err != nil {
 			t.Fatalf("failed to decode body: %v", err)
@@ -79,11 +79,7 @@ func TestURL(t *testing.T) {
 		server := handler.NewShortener(store)
 		response := httptest.NewRecorder()
 		server.ServeHTTP(response, req)
-		var got handler.URLShortResponse
-
-		// decode
-		err := json.NewDecoder(response.Body).Decode(&got)
-
+		got, err := getShortCode(response.Body)
 		if err != nil {
 			t.Fatalf("failed to decode body: %v", err)
 		}
@@ -194,4 +190,17 @@ func assertContentType(t testing.TB, got, want string) {
 
 func newShortenRequest(body string) *http.Request {
 	return httptest.NewRequest(http.MethodPost, "/shorten", strings.NewReader(body))
+}
+
+func getShortCode(body *bytes.Buffer) (*handler.URLShortResponse, error) {
+	var got handler.URLShortResponse
+
+	// decode
+	err := json.NewDecoder(body).Decode(&got)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &got, nil
 }
