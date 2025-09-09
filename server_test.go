@@ -116,7 +116,7 @@ func TestURL(t *testing.T) {
 
 	t.Run("GET /abc123 redirects client to location", func(t *testing.T) {
 		store := FakeStore{urls: map[string]string{"abc123": "https://example.com"}}
-		server := NewShortener(&store)
+		server := NewRedirector(&store)
 		req := httptest.NewRequest(http.MethodGet, "/abc123", nil)
 		response := httptest.NewRecorder()
 
@@ -135,7 +135,7 @@ func TestURL(t *testing.T) {
 
 	t.Run("GET /xyz123 redirect not found location", func(t *testing.T) {
 		store := FakeStore{urls: map[string]string{"abc123": "https://example.com"}}
-		server := NewShortener(&store)
+		server := NewRedirector(&store)
 		req := httptest.NewRequest(http.MethodGet, "/xyz123", nil)
 		response := httptest.NewRecorder()
 

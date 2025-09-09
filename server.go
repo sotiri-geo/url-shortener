@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-	"path"
 )
 
 const (
@@ -62,10 +61,6 @@ func (u *Shortener) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case http.MethodPost:
 		u.processURL(w, r)
 		return
-
-	case http.MethodGet:
-		u.redirectURL(w, r)
-		return
 	}
 }
 
@@ -88,16 +83,6 @@ func (u *Shortener) processURL(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 
 	json.NewEncoder(w).Encode(URLShortResponse{Short: u.store.GetShortURL(req.URL)})
-}
-
-func (u *Shortener) redirectURL(w http.ResponseWriter, r *http.Request) {
-	shortCode, exists := u.store.GetOriginalURL(path.Base(r.URL.Path))
-	if !exists {
-		errResponse := NewErrorResponse(http.StatusNotFound, ERR_SHORT_CODE_NOT_FOUND, ERR_SHORT_CODE_NOT_FOUND_CODE, ERR_SHORT_CODE_NOT_FOUND_DETAILS)
-		errResponse.WriteError(w)
-	}
-	w.WriteHeader(http.StatusFound)
-	http.Redirect(w, r, shortCode, http.StatusFound)
 }
 
 func NewErrorResponse(status int, message, code, details string) *ErrorResponse {
