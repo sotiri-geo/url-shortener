@@ -53,8 +53,7 @@ func TestHealthCheckEndpoint(t *testing.T) {
 
 func TestURL(t *testing.T) {
 	t.Run("POST /shorten returns a shortened url", func(t *testing.T) {
-		body := `{ "url": "https://example.com" }`
-		req := httptest.NewRequest(http.MethodPost, "/shorten", strings.NewReader(body))
+		req := newShortenRequest(`{ "url": "https://example.com" }`)
 		store := NewFakeStore()
 		server := handler.NewShortener(store)
 		response := httptest.NewRecorder()
@@ -75,8 +74,7 @@ func TestURL(t *testing.T) {
 	})
 
 	t.Run("POST /shorten stores state", func(t *testing.T) {
-		body := `{ "url": "https://example.com" }`
-		req := httptest.NewRequest(http.MethodPost, "/shorten", strings.NewReader(body))
+		req := newShortenRequest(`{ "url": "https://example.com" }`)
 		store := NewFakeStore()
 		server := handler.NewShortener(store)
 		response := httptest.NewRecorder()
@@ -99,8 +97,7 @@ func TestURL(t *testing.T) {
 	t.Run("bad client request with missing url key", func(t *testing.T) {
 		store := NewFakeStore()
 		server := handler.NewShortener(store)
-		body := `{ invalid json }`
-		req := httptest.NewRequest(http.MethodPost, "/shorten", strings.NewReader(body))
+		req := newShortenRequest(`{ invalid json }`)
 		response := httptest.NewRecorder()
 		want := handler.ErrorResponse{
 			Error:   handler.ERR_INVALID_JSON,
@@ -124,8 +121,7 @@ func TestURL(t *testing.T) {
 	t.Run("bad client request with empty url", func(t *testing.T) {
 		store := NewFakeStore()
 		server := handler.NewShortener(store)
-		body := `{ "url": "" }`
-		req := httptest.NewRequest(http.MethodPost, "/shorten", strings.NewReader(body))
+		req := newShortenRequest(`{ "url": "" }`)
 		response := httptest.NewRecorder()
 		want := handler.ErrorResponse{
 			Error:   handler.ERR_EMPTY_URL,
@@ -194,4 +190,8 @@ func assertContentType(t testing.TB, got, want string) {
 	if got != want {
 		t.Errorf("incorrect content type: got %q, want %q", got, want)
 	}
+}
+
+func newShortenRequest(body string) *http.Request {
+	return httptest.NewRequest(http.MethodPost, "/shorten", strings.NewReader(body))
 }
