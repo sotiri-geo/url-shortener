@@ -1,6 +1,6 @@
 package storage
 
 type URLStore interface {
-	Save(shortUrl, originalUrl string)
+	Save(shortCode, originalUrl string)
 	GetOriginalURL(shortUrl string) (string, bool)
 }
