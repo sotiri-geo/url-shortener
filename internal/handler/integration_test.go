@@ -6,11 +6,12 @@ import (
 	"testing"
 
 	"github.com/sotiri-geo/url-shortener/internal/handler"
+	"github.com/sotiri-geo/url-shortener/internal/storage/memory"
 )
 
 func TestGeneratingShortCodesAndRedirecting(t *testing.T) {
 
-	store := NewFakeStore()
+	store := memory.New()
 	shortner := handler.NewShortener(store, NewStubGenerator())
 	redirector := handler.NewRedirector(store)
 

@@ -17,13 +17,13 @@ func NewWithData(urls map[string]string) *MemoryDB {
 	return &MemoryDB{urls}
 }
 
-func (m *MemoryDB) GetOriginalUrl(shortCode string) (string, bool) {
+func (m *MemoryDB) GetOriginalURL(shortCode string) (string, bool) {
 	original, exists := m.urls[shortCode]
 	return original, exists
 }
 
 func (m *MemoryDB) Save(shortCode, originalUrl string) error {
-	_, exists := m.GetOriginalUrl(shortCode)
+	_, exists := m.GetOriginalURL(shortCode)
 	if exists {
 		return ErrShortCodeExists
 	}

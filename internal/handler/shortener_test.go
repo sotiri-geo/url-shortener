@@ -25,8 +25,9 @@ func (f *FakeStore) GetOriginalURL(shortCode string) (string, bool) {
 	return url, exists
 }
 
-func (f *FakeStore) Save(shortCode, original string) {
+func (f *FakeStore) Save(shortCode, original string) error {
 	f.urls[shortCode] = original
+	return nil
 }
 
 func (f *FakeStore) Exists(shortCode string) bool {

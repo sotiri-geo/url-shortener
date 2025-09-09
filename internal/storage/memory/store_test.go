@@ -11,7 +11,7 @@ func TestMemoryDBStore(t *testing.T) {
 	t.Run("get original url from short code", func(t *testing.T) {
 		store := memory.NewWithData(map[string]string{"abc123": "https://example.com"})
 
-		got, exists := store.GetOriginalUrl("abc123")
+		got, exists := store.GetOriginalURL("abc123")
 		want := "https://example.com"
 		if !exists {
 			t.Fatal("url should exist in store")
@@ -23,7 +23,7 @@ func TestMemoryDBStore(t *testing.T) {
 	t.Run("url does not exist in store", func(t *testing.T) {
 		store := memory.New()
 
-		_, found := store.GetOriginalUrl("abc123")
+		_, found := store.GetOriginalURL("abc123")
 
 		if found {
 			t.Fatal("should not find url")
@@ -36,7 +36,7 @@ func TestMemoryDBStore(t *testing.T) {
 		want := "https://example.com"
 		store.Save(shortCode, want)
 
-		got, exists := store.GetOriginalUrl(shortCode)
+		got, exists := store.GetOriginalURL(shortCode)
 
 		if !exists {
 			t.Fatalf("short url %q should exist", shortCode)
