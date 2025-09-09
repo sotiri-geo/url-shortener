@@ -32,7 +32,7 @@ type URLStore interface {
 	GetOriginalURL(shortCode string) (string, bool)
 }
 
-type URLServer struct {
+type Shortener struct {
 	store URLStore
 }
 
@@ -41,6 +41,10 @@ type ErrorResponse struct {
 	Code    string `json:"code,omitempty"`    // optional
 	Details string `json:"details,omitempty"` // optional
 	Status  int    `json:"status"`
+}
+
+func NewShortener(store URLStore) *Shortener {
+	return &Shortener{store}
 }
 
 func (e *ErrorResponse) WriteError(w http.ResponseWriter) {
@@ -53,7 +57,7 @@ func HealthCheck(w http.ResponseWriter, r *http.Request) {
 }
 
 // Implement the Handler interface
-func (u *URLServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (u *Shortener) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodPost:
 		u.processURL(w, r)
@@ -65,7 +69,7 @@ func (u *URLServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (u *URLServer) processURL(w http.ResponseWriter, r *http.Request) {
+func (u *Shortener) processURL(w http.ResponseWriter, r *http.Request) {
 	var req URLRequest
 	// try decode the body
 	err := json.NewDecoder(r.Body).Decode(&req)
@@ -86,7 +90,7 @@ func (u *URLServer) processURL(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(URLShortResponse{Short: u.store.GetShortURL(req.URL)})
 }
 
-func (u *URLServer) redirectURL(w http.ResponseWriter, r *http.Request) {
+func (u *Shortener) redirectURL(w http.ResponseWriter, r *http.Request) {
 	shortCode, exists := u.store.GetOriginalURL(path.Base(r.URL.Path))
 	if !exists {
 		errResponse := NewErrorResponse(http.StatusNotFound, ERR_SHORT_CODE_NOT_FOUND, ERR_SHORT_CODE_NOT_FOUND_CODE, ERR_SHORT_CODE_NOT_FOUND_DETAILS)

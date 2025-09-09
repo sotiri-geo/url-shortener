@@ -21,9 +21,10 @@ func (i *InMemoryURLStore) GetOriginalURL(shortCode string) (string, bool) {
 }
 
 func main() {
-
+	store := InMemoryURLStore{}
+	shortener := NewShortener(&store)
 	// Create handle func and register route
 	http.HandleFunc("/health", HealthCheck)
-	http.Handle("/shortener", &URLServer{&InMemoryURLStore{}})
+	http.Handle("/shortener", shortener)
 	log.Fatal(http.ListenAndServe(":3000", nil))
 }

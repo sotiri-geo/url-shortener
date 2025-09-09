@@ -44,8 +44,8 @@ func TestURL(t *testing.T) {
 	t.Run("POST /shorten returns a shortened url", func(t *testing.T) {
 		body := `{ "url": "https://example.com" }`
 		req := httptest.NewRequest(http.MethodPost, "/shorten", strings.NewReader(body))
-
-		server := URLServer{&FakeStore{}}
+		store := FakeStore{}
+		server := NewShortener(&store)
 		response := httptest.NewRecorder()
 		want := "abc123"
 		server.ServeHTTP(response, req)
@@ -63,7 +63,8 @@ func TestURL(t *testing.T) {
 	})
 
 	t.Run("bad client request with missing url key", func(t *testing.T) {
-		server := URLServer{&FakeStore{}}
+		store := FakeStore{}
+		server := NewShortener(&store)
 		body := `{ invalid json }`
 		req := httptest.NewRequest(http.MethodPost, "/shorten", strings.NewReader(body))
 		response := httptest.NewRecorder()
@@ -87,7 +88,8 @@ func TestURL(t *testing.T) {
 	})
 
 	t.Run("bad client request with empty url", func(t *testing.T) {
-		server := URLServer{&FakeStore{}}
+		store := FakeStore{}
+		server := NewShortener(&store)
 		body := `{ "url": "" }`
 		req := httptest.NewRequest(http.MethodPost, "/shorten", strings.NewReader(body))
 		response := httptest.NewRecorder()
@@ -113,7 +115,8 @@ func TestURL(t *testing.T) {
 	})
 
 	t.Run("GET /abc123 redirects client to location", func(t *testing.T) {
-		server := URLServer{&FakeStore{urls: map[string]string{"abc123": "https://example.com"}}}
+		store := FakeStore{urls: map[string]string{"abc123": "https://example.com"}}
+		server := NewShortener(&store)
 		req := httptest.NewRequest(http.MethodGet, "/abc123", nil)
 		response := httptest.NewRecorder()
 
@@ -131,7 +134,8 @@ func TestURL(t *testing.T) {
 	})
 
 	t.Run("GET /xyz123 redirect not found location", func(t *testing.T) {
-		server := URLServer{&FakeStore{urls: map[string]string{"abc123": "https://example.com"}}}
+		store := FakeStore{urls: map[string]string{"abc123": "https://example.com"}}
+		server := NewShortener(&store)
 		req := httptest.NewRequest(http.MethodGet, "/xyz123", nil)
 		response := httptest.NewRecorder()
 
