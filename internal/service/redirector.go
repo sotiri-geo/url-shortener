@@ -3,13 +3,15 @@ package service
 import (
 	"net/http"
 	"path"
+
+	"github.com/sotiri-geo/url-shortener/internal/storage"
 )
 
 type Redirector struct {
-	store URLStore
+	store storage.URLStore
 }
 
-func NewRedirector(store URLStore) *Redirector {
+func NewRedirector(store storage.URLStore) *Redirector {
 	return &Redirector{store}
 }
 

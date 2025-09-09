@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+
+	"github.com/sotiri-geo/url-shortener/internal/storage"
 )
 
 const (
@@ -26,13 +28,8 @@ type URLRequest struct {
 	URL string `json:"url"`
 }
 
-type URLStore interface {
-	GetShortURL(url string) string
-	GetOriginalURL(shortCode string) (string, bool)
-}
-
 type Shortener struct {
-	store URLStore
+	store storage.URLStore
 }
 
 type ErrorResponse struct {
@@ -42,7 +39,7 @@ type ErrorResponse struct {
 	Status  int    `json:"status"`
 }
 
-func NewShortener(store URLStore) *Shortener {
+func NewShortener(store storage.URLStore) *Shortener {
 	return &Shortener{store}
 }
 
