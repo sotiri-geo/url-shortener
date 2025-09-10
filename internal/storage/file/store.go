@@ -1,6 +1,7 @@
 package file
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -27,6 +28,24 @@ func (f *FileStore) GetOriginalURL(shortCode string) (string, error) {
 	}
 
 	return urls[shortCode], nil
+}
+
+func (f *FileStore) Save(shortCode, originalUrl string) error {
+	urls, err := f.load()
+	if err != nil {
+		return fmt.Errorf("failed to load before saving: %v", err)
+	}
+
+	urls[shortCode] = originalUrl
+
+	// seek to the beginning and rewrite
+	f.Database.Seek(0, io.SeekStart)
+	err = json.NewEncoder(f.Database).Encode(&urls)
+
+	if err != nil {
+		return fmt.Errorf("failed to encode: %v", err)
+	}
+	return err
 }
 
 func (f *FileStore) load() (handler.URL, error) {

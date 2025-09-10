@@ -56,30 +56,26 @@ func TestFileStore(t *testing.T) {
 
 	})
 
-	// t.Run("save short code", func(t *testing.T) {
-	// 	shortCode, originalUrl := "abc123", "https://example.com"
-	// 	// We need to persist this and create a temp file to write to
-	// 	// we will need to modify the interface slightly
-	// 	f, _ := os.CreateTemp("", "db")
-	// 	f.WriteString(`{}`)
-	// 	fs := file.FileStore{Database: f}
-	// 	// execute - temp ignoring error
-	// 	err := fs.Save(shortCode, originalUrl)
+	t.Run("save short code", func(t *testing.T) {
+		shortCode, originalUrl := "abc123", "https://example.com"
+		tmpFile, cleanDatabase := createTempFile(t, `{"xyz123": "https://google.com"}`)
+		defer cleanDatabase()
+		fs := file.NewFileStore(tmpFile)
+		err := fs.Save(shortCode, originalUrl)
 
-	// 	if err != nil {
-	// 		t.Fatalf("failed during save: %v", err)
-	// 	}
+		if err != nil {
+			t.Fatalf("failed during save: %v", err)
+		}
 
-	// 	// assert - short code exists
-	// 	shortCodeExists, err := fs.Exists(shortCode)
-	// 	if err != nil {
-	// 		t.Fatalf("failed to check for existance: %v", err)
-	// 	}
-	// 	if !shortCodeExists {
-	// 		t.Errorf("failed to persist short code: %q", shortCode)
-	// 	}
-	// 	defer os.Remove(f.Name()) // clean up
-	// })
+		// assert - short code exists
+		shortCodeExists, err := fs.Exists(shortCode)
+		if err != nil {
+			t.Fatalf("failed to check for existance: %v", err)
+		}
+		if !shortCodeExists {
+			t.Errorf("failed to persist short code: %q", shortCode)
+		}
+	})
 
 }
 
