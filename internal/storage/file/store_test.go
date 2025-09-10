@@ -1,7 +1,8 @@
 package file_test
 
 import (
-	"encoding/json"
+	"fmt"
+	"io"
 	"os"
 	"testing"
 
@@ -17,10 +18,9 @@ func TestFileStore(t *testing.T) {
 	t.Run("read file and check short code exists", func(t *testing.T) {
 		// setup
 		shortCode, originalUrl := "abc123", "https://example.com"
-		dummyData := map[string]string{shortCode: originalUrl}
-		f, _ := os.CreateTemp("", "db")
-		defer os.Remove(f.Name()) // clean up
-		json.NewEncoder(f).Encode(&dummyData)
+		dummyData := fmt.Sprintf(`{"%s": "%s"}`, shortCode, originalUrl)
+		f, cleanDatabase := createTempFile(t, dummyData)
+		defer cleanDatabase()
 
 		fs := file.NewFileStore(f)
 
@@ -39,13 +39,11 @@ func TestFileStore(t *testing.T) {
 	t.Run("read file and get original url", func(t *testing.T) {
 		// setup
 		shortCode, originalUrl := "abc123", "https://example.com"
-		dummyData := map[string]string{shortCode: originalUrl}
-		f, _ := os.CreateTemp("", "db")
-		defer os.Remove(f.Name()) // clean up
-		json.NewEncoder(f).Encode(&dummyData)
+		dummyData := fmt.Sprintf(`{"%s": "%s"}`, shortCode, originalUrl)
+		f, cleanDatabase := createTempFile(t, dummyData)
+		defer cleanDatabase()
 
 		fs := file.NewFileStore(f)
-
 		gotUrl, err := fs.GetOriginalURL(shortCode)
 
 		if err != nil {
@@ -83,4 +81,25 @@ func TestFileStore(t *testing.T) {
 	// 	defer os.Remove(f.Name()) // clean up
 	// })
 
+}
+
+func createTempFile(t testing.TB, initialData string) (io.ReadWriteSeeker, func()) {
+	t.Helper()
+
+	tmpfile, err := os.CreateTemp("", "db")
+
+	if err != nil {
+		t.Fatalf("could not create temp file: %v", err)
+	}
+
+	tmpfile.WriteString(initialData)
+
+	removeFile := func() {
+		err := tmpfile.Close()
+		if err != nil {
+			t.Fatalf("failed to close tmp file: %v", err)
+		}
+		os.Remove(tmpfile.Name())
+	}
+	return tmpfile, removeFile
 }

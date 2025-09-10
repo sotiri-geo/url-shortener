@@ -3,13 +3,12 @@ package file
 import (
 	"fmt"
 	"io"
-	"os"
 
 	"github.com/sotiri-geo/url-shortener/internal/handler"
 )
 
 type FileStore struct {
-	Database *os.File
+	Database io.ReadWriteSeeker
 }
 
 func (f *FileStore) Exists(shortCode string) (bool, error) {
@@ -39,6 +38,6 @@ func (f *FileStore) load() (handler.URL, error) {
 	return urls, err
 }
 
-func NewFileStore(database *os.File) *FileStore {
+func NewFileStore(database io.ReadWriteSeeker) *FileStore {
 	return &FileStore{Database: database}
 }
