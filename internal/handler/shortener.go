@@ -22,6 +22,7 @@ const (
 	ERR_SHORT_CODE_NOT_FOUND_CODE    = "NOT_FOUND"
 	ERR_SHORT_CODE_NOT_FOUND_DETAILS = "cannot process redirect without exisiting short code"
 	JsonContentType                  = "application/json"
+	maxRetries                       = 3
 )
 
 var ErrRetryAttemptsExceeded = errors.New("Exhausted retries.")
@@ -35,8 +36,9 @@ type URLRequest struct {
 }
 
 type Shortener struct {
-	store     storage.URLStore
-	generator generator.Generator
+	store      storage.URLStore
+	generator  generator.Generator
+	maxRetries int
 }
 
 type ErrorResponse struct {
@@ -47,7 +49,7 @@ type ErrorResponse struct {
 }
 
 func NewShortener(store storage.URLStore, generator generator.Generator) *Shortener {
-	return &Shortener{store, generator}
+	return &Shortener{store, generator, maxRetries}
 }
 
 func (e *ErrorResponse) WriteError(w http.ResponseWriter) {
@@ -85,7 +87,7 @@ func (u *Shortener) processURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	shortCode, err := u.retryShortCode(3) // TODO: pass in rety count as field on struct
+	shortCode, err := u.retryShortCode(u.maxRetries)
 
 	if err != nil {
 		errResponse := NewErrorResponse(http.StatusBadRequest, err.Error(), "RETRY_FAIL", fmt.Sprintf("attempted %d retries", 3))
