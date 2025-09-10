@@ -38,14 +38,10 @@ func NewFakeStore() *FakeStore {
 	return &FakeStore{urls: make(map[string]string)}
 }
 
-func NewFakeStoreWithUrls(urls map[string]string) *FakeStore {
-	return &FakeStore{urls: urls}
-}
-
-// TODO: change FixedResponse to RepeatResponse. And have a FixedResponse being a config param
 type StubGenerator struct {
 	GenerateCallCount int
 	FixedResponse     string
+	RepeatResponse    string
 	Repeat            int
 }
 
@@ -54,9 +50,9 @@ func (s *StubGenerator) Generate() string {
 	if s.Repeat > 0 {
 		s.GenerateCallCount++
 		s.Repeat--
-		return s.FixedResponse
+		return s.RepeatResponse
 	}
-	return "abc123"
+	return s.FixedResponse
 }
 
 func NewStubGenerator() *StubGenerator {
@@ -90,6 +86,7 @@ func TestShortener(t *testing.T) {
 	cases := []struct {
 		name             string
 		payload          string
+		setupGen         func(g *StubGenerator)
 		setupStore       func(f *FakeStore)
 		wantShortCode    string
 		wantStatus       int
@@ -97,8 +94,9 @@ func TestShortener(t *testing.T) {
 		wantErrorMessage string
 	}{
 		{
-			name:            "POST /shorten returns a shortened url",
+			name:            "returns a shortened url",
 			payload:         `{ "url": "https://example.com" }`,
+			setupGen:        func(g *StubGenerator) { g.FixedResponse = "abc123" },
 			setupStore:      func(s *FakeStore) {},
 			wantShortCode:   "abc123",
 			wantStatus:      http.StatusCreated,
@@ -107,6 +105,7 @@ func TestShortener(t *testing.T) {
 		{
 			name:             "request body missing url key",
 			payload:          `{ invalid json }`,
+			setupGen:         func(g *StubGenerator) {},
 			setupStore:       func(f *FakeStore) {},
 			wantContentType:  handler.JsonContentType,
 			wantStatus:       http.StatusBadRequest,
@@ -115,6 +114,7 @@ func TestShortener(t *testing.T) {
 		{
 			name:             "request body with empty string as url",
 			payload:          `{"url": ""}`,
+			setupGen:         func(g *StubGenerator) {},
 			setupStore:       func(f *FakeStore) {},
 			wantContentType:  handler.JsonContentType,
 			wantStatus:       http.StatusBadRequest,
@@ -128,6 +128,7 @@ func TestShortener(t *testing.T) {
 			store := NewFakeStore()
 			tt.setupStore(store)
 			gen := NewStubGenerator()
+			tt.setupGen(gen)
 			server := handler.NewShortener(store, gen)
 
 			// execute
@@ -172,12 +173,28 @@ func TestShortenerWithGenerator(t *testing.T) {
 				f.urls = map[string]string{"xyz123": "https://test.com"}
 			},
 			setupGen: func(g *StubGenerator) {
-				g.FixedResponse = "xyz123"
-				g.GenerateCallCount = 2
+				g.FixedResponse = "abc123"
+				g.RepeatResponse = "xyz123"
+				g.Repeat = 2
 			},
 			wantStatus:       http.StatusCreated,
 			wantContentType:  handler.JsonContentType,
 			wantGenCallCount: 2,
+		},
+		{
+			name:    "max retries exceeded",
+			payload: `{"url": "https://example.com"}`,
+			setupStore: func(f *FakeStore) {
+				f.urls = map[string]string{"xyz123": "https://test.com"}
+			},
+			setupGen: func(g *StubGenerator) {
+				g.FixedResponse = "abc123"
+				g.RepeatResponse = "xyz123"
+				g.Repeat = 5 // maxRetries fixed at 3
+			},
+			wantStatus:       http.StatusInternalServerError,
+			wantContentType:  handler.JsonContentType,
+			wantErrorMessage: handler.ErrRetryAttemptsExceeded.Error(),
 		},
 	}
 

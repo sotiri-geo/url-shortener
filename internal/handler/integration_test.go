@@ -1,40 +1,62 @@
 package handler_test
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/sotiri-geo/url-shortener/internal/generator"
 	"github.com/sotiri-geo/url-shortener/internal/handler"
 	"github.com/sotiri-geo/url-shortener/internal/storage/memory"
 )
 
-func TestGeneratingShortCodesAndRedirecting(t *testing.T) {
+func TestGeneratingShortnerAndRedirector(t *testing.T) {
+	cases := []struct {
+		name            string
+		originalUrl     string
+		setupGen        func(g *generator.RandomChars)
+		setupStore      func(s *memory.MemoryDB)
+		wantStatus      int
+		wantContentType string
+	}{
+		{
+			name:            "create short code and use it to be redirected to original url",
+			originalUrl:     "https://google.com",
+			setupGen:        func(g *generator.RandomChars) {},
+			setupStore:      func(s *memory.MemoryDB) {},
+			wantStatus:      http.StatusFound,
+			wantContentType: handler.JsonContentType,
+		},
+	}
 
-	store := memory.New()
-	shortner := handler.NewShortener(store, NewStubGenerator())
-	redirector := handler.NewRedirector(store)
+	for _, tt := range cases {
+		// Setup
+		store := memory.New()
+		gen := generator.New(generator.RandomGenSize)
+		shortner := handler.NewShortener(store, gen)
+		redirector := handler.NewRedirector(store)
 
-	t.Run("store url then use short url to be redirected", func(t *testing.T) {
+		// execute - shorten server
+		request := newShortenRequest(fmt.Sprintf(`{"url": "%s"}`, tt.originalUrl))
 		response := httptest.NewRecorder()
-		shortner.ServeHTTP(response, newShortenRequest(`{"url": "https://google.com"}`))
+		shortner.ServeHTTP(response, request)
 
+		// assert - shorten behaviour
 		assertStatusCode(t, response.Code, http.StatusCreated)
-		assertContentType(t, response.Header().Get("content-type"), handler.JsonContentType)
-		URL, err := getShortCode(response.Body)
+		assertContentType(t, response.Result().Header.Get("content-type"), handler.JsonContentType)
 
-		if err != nil {
-			t.Fatalf("failed to parse response from /shorten: %v", err)
-		}
+		shortCode, err := getShortCode(response.Body)
+		assertNoErr(t, err)
 
-		// attempt redirect
+		// execute - redirect
+		request = newRedirectRequest(shortCode.Short)
 		response = httptest.NewRecorder()
-		req := newRedirectRequest(URL.Short)
-		redirector.ServeHTTP(response, req)
+		redirector.ServeHTTP(response, request)
 
+		// assert - redirect behaviour
 		assertStatusCode(t, response.Code, http.StatusFound)
 		assertContentType(t, response.Result().Header.Get("content-type"), "text/html; charset=utf-8")
 		assertLocationHeader(t, response.Header().Get("Location"), "https://google.com")
-
-	})
+	}
 }
