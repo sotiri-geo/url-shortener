@@ -129,11 +129,6 @@ func TestURL(t *testing.T) {
 		server := handler.NewShortener(store, NewStubGenerator())
 		req := newShortenRequest(`{ invalid json }`)
 		response := httptest.NewRecorder()
-		want := handler.ErrorResponse{
-			Error:   handler.ERR_INVALID_JSON,
-			Code:    handler.ERR_INVALID_JSON_CODE,
-			Details: handler.ERR_INVALID_JSON_DETAILS,
-		}
 		server.ServeHTTP(response, req)
 		assertStatusCode(t, response.Code, http.StatusBadRequest)
 
@@ -145,7 +140,7 @@ func TestURL(t *testing.T) {
 			t.Fatalf("failed to decode error response: %v", err)
 		}
 
-		assertErrorResponse(t, got, want)
+		assertErrMessage(t, got.Error, handler.ERR_INVALID_JSON)
 	})
 
 	t.Run("bad client request with empty url", func(t *testing.T) {
@@ -153,11 +148,6 @@ func TestURL(t *testing.T) {
 		server := handler.NewShortener(store, NewStubGenerator())
 		req := newShortenRequest(`{ "url": "" }`)
 		response := httptest.NewRecorder()
-		want := handler.ErrorResponse{
-			Error:   handler.ERR_EMPTY_URL,
-			Code:    handler.ERR_EMPTY_URL_CODE,
-			Details: handler.ERR_EMPTY_URL_DETAILS,
-		}
 
 		server.ServeHTTP(response, req)
 
@@ -171,7 +161,7 @@ func TestURL(t *testing.T) {
 			t.Fatalf("failed to decode response body: %v", err)
 		}
 
-		assertErrorResponse(t, got, want)
+		assertErrMessage(t, got.Error, handler.ERR_EMPTY_URL)
 	})
 
 	t.Run("generated code existing requires a retry", func(t *testing.T) {
@@ -198,13 +188,15 @@ func TestURL(t *testing.T) {
 		response := httptest.NewRecorder()
 		server.ServeHTTP(response, req)
 
-		want := handler.NewErrorResponse(http.StatusInternalServerError, handler.ErrRetryAttemptsExceeded.Error(), "", "")
 		// Should exceed count returning an error
 		got, err := getErrorResponse(response)
 		if err != nil {
 			t.Fatalf("failed to decode response: %v", err)
 		}
-		assertErrorResponse(t, *got, *want)
+
+		assertStatusCode(t, response.Code, http.StatusInternalServerError)
+		wantErrMessage := handler.ErrRetryAttemptsExceeded.Error()
+		assertErrMessage(t, got.Error, wantErrMessage)
 
 	})
 }
@@ -251,11 +243,11 @@ func assertURL(t testing.TB, got, want string) {
 	}
 }
 
-func assertErrorResponse(t testing.TB, got, want handler.ErrorResponse) {
+func assertErrMessage(t testing.TB, got, want string) {
 	t.Helper()
 
-	if got.Error != want.Error {
-		t.Errorf("got error %q, want %q", got.Error, want.Error)
+	if got != want {
+		t.Errorf("got error message %q, want %q", got, want)
 	}
 }
 

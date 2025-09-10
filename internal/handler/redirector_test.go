@@ -31,12 +31,10 @@ func TestRedirector(t *testing.T) {
 		server.ServeHTTP(response, req)
 		assertStatusCode(t, response.Code, http.StatusNotFound)
 
-		want := handler.ErrorResponse{Error: "short code not found"}
-
 		var got handler.ErrorResponse
 
 		json.NewDecoder(response.Body).Decode(&got)
-		assertErrorResponse(t, got, want)
+		assertErrMessage(t, got.Error, "short code not found")
 
 	})
 

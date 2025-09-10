@@ -90,7 +90,7 @@ func (u *Shortener) processURL(w http.ResponseWriter, r *http.Request) {
 	shortCode, err := u.retryShortCode(u.maxRetries)
 
 	if err != nil {
-		errResponse := NewErrorResponse(http.StatusBadRequest, err.Error(), "RETRY_FAIL", fmt.Sprintf("attempted %d retries", 3))
+		errResponse := NewErrorResponse(http.StatusInternalServerError, err.Error(), "RETRY_FAIL", fmt.Sprintf("attempted %d retries", 3))
 		errResponse.WriteError(w)
 		return
 	}
