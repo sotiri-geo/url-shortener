@@ -48,6 +48,18 @@ type ErrorResponse struct {
 	Status  int    `json:"status"`
 }
 
+type URL map[string]string
+
+func NewUrls(rdr io.Reader) (URL, error) {
+	var urls map[string]string
+
+	err := json.NewDecoder(rdr).Decode(&urls)
+	if err != nil {
+		return nil, err
+	}
+	return urls, nil
+}
+
 func NewShortener(store storage.URLStore, generator generator.Generator) *Shortener {
 	return &Shortener{store, generator, maxRetries}
 }

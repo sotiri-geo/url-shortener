@@ -1,47 +1,44 @@
 package file
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
-)
 
-// mapping from shortCode to URL
-type ShortCodeToURL map[string]string
+	"github.com/sotiri-geo/url-shortener/internal/handler"
+)
 
 type FileStore struct {
 	Database *os.File
 }
 
 func (f *FileStore) Exists(shortCode string) (bool, error) {
-	loaded, err := f.loadData()
-	_, exists := loaded[shortCode]
-	return exists, err
+	urls, err := f.load()
+	if err != nil {
+		return false, fmt.Errorf("failed to execute method Exists(%q): %v", shortCode, err)
+	}
+	_, exists := urls[shortCode]
+	return exists, nil
 }
 
-func (f *FileStore) Save(shortCode, originalUrl string) error {
+func (f *FileStore) GetOriginalURL(shortCode string) (string, error) {
+	urls, err := f.load()
+	if err != nil {
+		return "", fmt.Errorf("failed to get original url from short code %q: %v", shortCode, err)
+	}
+
+	return urls[shortCode], nil
+}
+
+func (f *FileStore) load() (handler.URL, error) {
 	f.Database.Seek(0, io.SeekStart)
-	// load
-	loaded, err := f.loadData()
+	urls, err := handler.NewUrls(f.Database)
 	if err != nil {
-		return fmt.Errorf("failed to load data: %v", err)
+		return nil, fmt.Errorf("failed to read urls: %v", err)
 	}
-	// mutate
-	loaded[shortCode] = originalUrl
-	return json.NewEncoder(f.Database).Encode(&loaded)
+	return urls, err
 }
 
-func (f *FileStore) loadData() (ShortCodeToURL, error) {
-	var data ShortCodeToURL
-	// seek to the start
-	_, err := f.Database.Seek(0, io.SeekStart)
-	if err != nil {
-		return data, fmt.Errorf("failed to seek start: %v", err)
-	}
-	err = json.NewDecoder(f.Database).Decode(&data)
-	if err != nil {
-		return data, fmt.Errorf("failed to decode: %v", err)
-	}
-	return data, nil
+func NewFileStore(database *os.File) *FileStore {
+	return &FileStore{Database: database}
 }
