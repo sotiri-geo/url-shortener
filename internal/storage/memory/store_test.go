@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/sotiri-geo/url-shortener/internal/storage"
 	"github.com/sotiri-geo/url-shortener/internal/storage/memory"
 )
 
@@ -80,4 +81,12 @@ func TestMemoryDBStore(t *testing.T) {
 			t.Error("should exist in store")
 		}
 	})
+}
+
+// Used for contract testing
+func TestMemoryContract(t *testing.T) {
+
+	storage.URLStoreContract{
+		NewStore: func() storage.URLStore { return memory.New() },
+	}.Test(t)
 }
